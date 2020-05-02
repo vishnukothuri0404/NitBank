@@ -5,7 +5,7 @@ public class HelloWorld {
 
 	@Override
 	public String toString() {
-		return "HelloWorld ";
+		return "World ";
 	}
 	
 }
