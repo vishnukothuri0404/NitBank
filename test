@@ -2,41 +2,48 @@ apiVersion: eksctl.io/v1alpha5
 kind: ClusterConfig
 
 metadata:
-  name: kube-game-cluster
-  region: us-east-1
-  version: "1.21"
+  name: kube-game-cluster            # Cluster name
+  region: us-east-1                  # AWS region (N. Virginia)
+  version: "1.31"                    # Kubernetes version
 
 nodeGroups:
-  - name: kube-game-ng
-    instanceType: t2.medium
-    desiredCapacity: 1
-    minSize: 1
-    maxSize: 3
-    volumeSize: 40
-    volumeType: gp2
+  - name: kube-game-ng               # Node group name
+    instanceType: t2.medium          # EC2 instance type for nodes
+    desiredCapacity: 1               # Desired number of nodes
+    minSize: 1                       # Minimum number of nodes
+    maxSize: 5                       # Maximum number of nodes
+    volumeSize: 40                   # EBS volume size (in GB)
+    volumeType: gp2                  # EBS volume type
     ssh:
-      allow: true
-      publicKeyName: Vishnu_2048
-    privateNetworking: false
+      allow: true                    # Enables SSH access
+      publicKeyName: Vishnu_2048     # SSH public key for access
+    privateNetworking: false         # Use private networking for the node group
     overrideBootstrapCommand: |
       #!/bin/bash
-      # Install custom packages or software
       yum install ruby wget -y
       wget https://aws-codedeploy-us-east-2.s3.us-east-2.amazonaws.com/latest/install
       chmod +x ./install
       sudo ./install auto
+      systemctl status codedeploy-agent
       systemctl start codedeploy-agent
       systemctl enable codedeploy-agent
-      
-      # Install kubectl
       curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
       sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
       kubectl version --client
 
-      # Custom IAM Role
-      echo "Setting up IAM role and instance profile"
-      
-      # Now run the default bootstrap process (EKS default script)
-      /etc/eks/bootstrap.sh kube-game-cluster
-    iam:
-      instanceRoleARN: arn:aws:iam::872515248362:role/ec2tofullacess-blue-green
+iam:
+  withOIDC: true                     # Enable OIDC integration for IAM roles
+cloudWatch:
+  clusterLogging:
+    enableTypes: ["api", "audit", "authenticator"] # Enable CloudWatch logs for the EKS cluster
+
+vpc:
+  nat:
+    gateway: Single                   # Single NAT gateway for the VPC
+
+kubernetesNetworkConfig:
+  ipFamily: IPv4                      # Use IPv4 addressing
+
+addons:
+  - name: vpc-cni                     # AWS VPC CNI plugin for networking
+    version: latest                   # Use the latest version of the VPC CNI plugin
